@@ -252,14 +252,15 @@ int main() {
               car_s = end_path_s;
             }
 			
-			// Prediction : Analysing other cars positions.
+			// Prediction of other cars positions(collision avoidence).
             bool car_ahead = false;
             bool car_left = false;
-            bool car_righ = false;
+            bool car_right = false;
             for ( int i = 0; i < sensor_fusion.size(); i++ ) {
                 float d = sensor_fusion[i][6];
-                int car_lane = -1;
-                // is it on the same lane we are
+				
+                // Find the lane of the i-th car
+				int car_lane = -1;
                 if ( d > 0 && d < 4 ) {
                   car_lane = 0;
                 } else if ( d > 4 && d < 8 ) {
@@ -268,50 +269,75 @@ int main() {
                   car_lane = 2;
                 }
 				
-				//For car detected on the opposite track
+				//Skip car from lane other then 0,1,2
                 if (car_lane < 0) {
                   continue;
                 }
-                // Find car speed.
+				
+                // Calculate speed of the i-th car
                 double vx = sensor_fusion[i][3];
                 double vy = sensor_fusion[i][4];
-                double check_speed = sqrt(vx*vx + vy*vy);
-                double check_car_s = sensor_fusion[i][5];
-                // Estimate car s position after executing previous trajectory.
-                check_car_s += ((double)prev_size*0.02*check_speed);
-
-                if ( car_lane == lane ) {
-                  // Car in our lane.
-                  car_ahead |= check_car_s > car_s && check_car_s - car_s < 30;
-                } else if ( car_lane - lane == -1 ) {
-                  // Car left
-                  car_left |= car_s - 30 < check_car_s && car_s + 30 > check_car_s;
-                } else if ( car_lane - lane == 1 ) {
-                  // Car right
-                  car_righ |= car_s - 30 < check_car_s && car_s + 30 > check_car_s;
+                double i_car_speed = sqrt(vx*vx + vy*vy);
+                double i_car_s = sensor_fusion[i][5];
+				
+                // Calculate next s position of i-th car.
+                i_car_s += ((double)prev_size*0.02*i_car_speed);
+				
+				// Update car flag (collision avoidence)
+                if ( car_lane == lane && !car_ahead ) {
+                  // Car in our lane
+				  if(i_car_s > car_s){
+					  //Ahead of our car
+					  if(i_car_s - car_s < 30){
+						  //i-th car with in 30
+						  car_ahead = true;
+					  }else{
+						  //Don't care 
+						  car_ahead = false;
+					  }
+				  }
+                } else if ( car_lane - lane == -1 && !car_left) {
+                  // Car is in left
+				  if(car_s - 30 < i_car_s && car_s + 30 > i_car_s){
+					  //i-th car is between the collision range
+					  car_left = true;
+				  }else{
+					  // Don't care
+					  car_left = false;
+				  }
+                } else if ( car_lane - lane == 1 && !car_right ) {
+                  // Car is in right
+				  if(car_s - 30 < i_car_s && car_s + 30 > i_car_s){
+					  //i-th car is between the collision range
+					  car_right = true;
+				  }else{
+					  // Don't care
+					  car_right = false;
+				  }
                 }
             }
 
-            // Behavior : Let's see what to do.
+            // Decide Behavior of our car
             double speed_diff = 0;
             const double MAX_SPEED = 49.5;
             const double MAX_ACC = .224;
-            if ( car_ahead ) { // Car ahead
+            if ( car_ahead ) { 
+			// Car ahead
               if ( !car_left && lane > 0 ) {
-                // if there is no car left and there is a left lane.
-                lane--; // Change lane left.
-              } else if ( !car_righ && lane != 2 ){
-                // if there is no car right and there is a right lane.
-                lane++; // Change lane right.
+                // Change lane left.
+                lane--; 
+              } else if ( !car_right && lane != 2 ){
+                // Change lane right.
+                lane++; 
               } else {
+				// No option for lane shift. So, reducing the speed
                 speed_diff -= MAX_ACC;
               }
-            } else {
-              if ( lane != 1 ) { // if we are not on the center lane.
-                if ( ( lane == 0 && !car_righ ) || ( lane == 2 && !car_left ) ) {
-                  lane = 1; // Back to center.
-                }
-              }
+            } else if(( lane == 0 && !car_right ) || ( lane == 2 && !car_left ) ) {
+				// Back to center.
+                lane = 1; 
+            }else {
+              // Adjust speed to maintain in the MAX_SPEED
               if ( ref_vel < MAX_SPEED ) {
                 speed_diff += MAX_ACC;
               }
