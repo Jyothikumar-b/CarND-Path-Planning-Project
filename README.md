@@ -18,7 +18,6 @@ The maneuvar, we calculate should be with the following constraints.[Rubic](http
 
 ### 1.  The car is able to drive at least 4.32 miles without incident.
 I ran the simulator for 6 miles without incident.
-
 ![Driving](images/drive.png)
 
 ### 2. The car should be drive with in the speed limit
@@ -55,7 +54,7 @@ The maneuvour calculated in **Three** steps.
 >}
 >```
 
->b. Implementing collisons avoidence system, by sensing the car arround our vehicle.
+>b. Implementing collisions avoidence system, by sensing the car arround our vehicle.
 >```C
 >				// Update car flag (collision avoidence)
 >                if ( car_lane == lane && !car_ahead ) {
